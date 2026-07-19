@@ -23,10 +23,12 @@ create unique index if not exists profiles_username_unique_idx
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own"
   on public.profiles for select
   using (auth.uid() = user_id);
 
+drop policy if exists "profiles_insert_own" on public.profiles;
 create policy "profiles_insert_own"
   on public.profiles for insert
   with check (auth.uid() = user_id);
@@ -51,19 +53,23 @@ create index if not exists clips_user_id_idx on public.clips (user_id);
 
 alter table public.clips enable row level security;
 
+drop policy if exists "clips_select_own" on public.clips;
 create policy "clips_select_own"
   on public.clips for select
   using (auth.uid() = user_id);
 
+drop policy if exists "clips_insert_own" on public.clips;
 create policy "clips_insert_own"
   on public.clips for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "clips_update_own" on public.clips;
 create policy "clips_update_own"
   on public.clips for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+drop policy if exists "clips_delete_own" on public.clips;
 create policy "clips_delete_own"
   on public.clips for delete
   using (auth.uid() = user_id);
@@ -92,19 +98,23 @@ create index if not exists run_requests_clip_id_idx
 
 alter table public.run_requests enable row level security;
 
+drop policy if exists "run_requests_select_own" on public.run_requests;
 create policy "run_requests_select_own"
   on public.run_requests for select
   using (auth.uid() = user_id);
 
+drop policy if exists "run_requests_insert_own" on public.run_requests;
 create policy "run_requests_insert_own"
   on public.run_requests for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "run_requests_update_own" on public.run_requests;
 create policy "run_requests_update_own"
   on public.run_requests for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+drop policy if exists "run_requests_delete_own" on public.run_requests;
 create policy "run_requests_delete_own"
   on public.run_requests for delete
   using (auth.uid() = user_id);
@@ -145,14 +155,17 @@ end $$;
 
 alter table public.user_settings enable row level security;
 
+drop policy if exists "user_settings_select_own" on public.user_settings;
 create policy "user_settings_select_own"
   on public.user_settings for select
   using (auth.uid() = user_id);
 
+drop policy if exists "user_settings_insert_own" on public.user_settings;
 create policy "user_settings_insert_own"
   on public.user_settings for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "user_settings_update_own" on public.user_settings;
 create policy "user_settings_update_own"
   on public.user_settings for update
   using (auth.uid() = user_id)
