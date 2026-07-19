@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { usernameToEmail } from "@/lib/username";
+import { normalizeUsername, usernameToEmail } from "@/lib/username";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,6 +27,22 @@ export default function LoginPage() {
       setError("Invalid username or password.");
       return;
     }
+
+    // Best-effort backfill for accounts that predate the profiles table -
+    // ignore errors, since the row usually already exists.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from("profiles")
+        .insert({ user_id: user.id, username: normalizeUsername(username) })
+        .then(
+          () => {},
+          () => {},
+        );
+    }
+
     router.push("/clips");
     router.refresh();
   }

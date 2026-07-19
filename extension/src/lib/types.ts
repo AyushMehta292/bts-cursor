@@ -36,6 +36,8 @@ export type UserSettings = {
   scroll_max_pause_ms: number;
   scroll_min_amount_px: number;
   scroll_max_amount_px: number;
+  scroll_min_speed_px_s: number;
+  scroll_max_speed_px_s: number;
 };
 
 export type Mode = "idle" | "typing" | "paused" | "scrolling";
@@ -54,10 +56,13 @@ export type ScrollStartPayload = {
   maxPauseMs: number;
   minAmountPx: number;
   maxAmountPx: number;
+  minSpeedPxS: number;
+  maxSpeedPxS: number;
 };
 
 export type ExtensionStatus = {
   mode: Mode;
+  signedIn: boolean;
   username: string | null;
   activeRunId: string | null;
   lastError: string | null;

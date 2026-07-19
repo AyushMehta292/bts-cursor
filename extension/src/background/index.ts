@@ -29,12 +29,17 @@ async function publishStatus() {
 
 async function getStatus(): Promise<ExtensionStatus> {
   let username: string | null = null;
+  let signedIn = false;
   try {
     const supabase = getSupabase();
     const {
       data: { session },
     } = await supabase.auth.getSession();
+    signedIn = !!session;
     if (session) {
+      // Username is just for display - a missing profile row (e.g. an
+      // account created before this table existed) should not make the
+      // popup think you're signed out.
       const { data: profile } = await supabase
         .from("profiles")
         .select("username")
@@ -45,7 +50,7 @@ async function getStatus(): Promise<ExtensionStatus> {
   } catch (err) {
     lastError = err instanceof Error ? err.message : String(err);
   }
-  return { mode, username, activeRunId, lastError };
+  return { mode, signedIn, username, activeRunId, lastError };
 }
 
 async function getActiveTabId(): Promise<number | null> {
@@ -96,6 +101,8 @@ async function startScrollingIfNeeded() {
       maxPauseMs: scrollSettings.scroll_max_pause_ms,
       minAmountPx: scrollSettings.scroll_min_amount_px,
       maxAmountPx: scrollSettings.scroll_max_amount_px,
+      minSpeedPxS: scrollSettings.scroll_min_speed_px_s,
+      maxSpeedPxS: scrollSettings.scroll_max_speed_px_s,
     },
   });
   mode = "scrolling";

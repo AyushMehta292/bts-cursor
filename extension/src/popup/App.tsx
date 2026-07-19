@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { getSupabase } from "../lib/supabase";
 import type { ExtensionStatus, Mode } from "../lib/types";
-import { usernameToEmail } from "../lib/username";
+import { normalizeUsername, usernameToEmail } from "../lib/username";
 
 function modeLabel(mode: Mode) {
   switch (mode) {
@@ -72,6 +72,20 @@ export default function App() {
       if (signInError) {
         setError("Invalid username or password.");
       } else {
+        // Best-effort backfill for accounts that predate the profiles
+        // table - ignore errors, since the row usually already exists.
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          await supabase
+            .from("profiles")
+            .insert({ user_id: user.id, username: normalizeUsername(username) })
+            .then(
+              () => {},
+              () => {},
+            );
+        }
         await chrome.runtime.sendMessage({ type: "AUTH_CHANGED" });
         await refreshStatus();
       }
@@ -97,7 +111,7 @@ export default function App() {
     }
   }
 
-  const signedIn = !!status?.username;
+  const signedIn = !!status?.signedIn;
 
   return (
     <div className="shell">
@@ -123,7 +137,8 @@ export default function App() {
             <div className="row">
               <span className="label">Account</span>
               <span className="value">
-                {status?.username ?? "Not signed in"}
+                {status?.username ??
+                  (status?.signedIn ? "Signed in" : "Not signed in")}
               </span>
             </div>
             {status?.activeRunId && (

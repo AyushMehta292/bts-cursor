@@ -38,6 +38,8 @@ export type UserSettings = {
   scroll_max_pause_ms: number;
   scroll_min_amount_px: number;
   scroll_max_amount_px: number;
+  scroll_min_speed_px_s: number;
+  scroll_max_speed_px_s: number;
   updated_at: string;
 };
 

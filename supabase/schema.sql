@@ -119,10 +119,29 @@ create table if not exists public.user_settings (
   scroll_max_pause_ms integer not null default 5000 check (scroll_max_pause_ms >= 0),
   scroll_min_amount_px integer not null default 80 check (scroll_min_amount_px >= 0),
   scroll_max_amount_px integer not null default 400 check (scroll_max_amount_px >= 0),
+  scroll_min_speed_px_s integer not null default 200 check (scroll_min_speed_px_s > 0),
+  scroll_max_speed_px_s integer not null default 800 check (scroll_max_speed_px_s > 0),
   updated_at timestamptz not null default now(),
   constraint user_settings_pause_range check (scroll_min_pause_ms <= scroll_max_pause_ms),
-  constraint user_settings_amount_range check (scroll_min_amount_px <= scroll_max_amount_px)
+  constraint user_settings_amount_range check (scroll_min_amount_px <= scroll_max_amount_px),
+  constraint user_settings_speed_range check (scroll_min_speed_px_s <= scroll_max_speed_px_s)
 );
+
+-- Safe to re-run on a project created before scroll speed was added.
+alter table public.user_settings
+  add column if not exists scroll_min_speed_px_s integer not null default 200 check (scroll_min_speed_px_s > 0);
+alter table public.user_settings
+  add column if not exists scroll_max_speed_px_s integer not null default 800 check (scroll_max_speed_px_s > 0);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'user_settings_speed_range'
+  ) then
+    alter table public.user_settings
+      add constraint user_settings_speed_range check (scroll_min_speed_px_s <= scroll_max_speed_px_s);
+  end if;
+end $$;
 
 alter table public.user_settings enable row level security;
 

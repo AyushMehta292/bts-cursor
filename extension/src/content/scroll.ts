@@ -35,7 +35,11 @@ async function runScrollLoop() {
   while (scrolling && config) {
     const amount = randInt(config.minAmountPx, config.maxAmountPx);
     const direction = Math.random() < 0.5 ? -1 : 1;
-    const duration = randInt(250, 900);
+    // A fresh random speed per burst (never above the configured max) is
+    // what makes this look like a human scrolling at varying pace rather
+    // than a fixed-rate bot.
+    const speedPxPerSec = randInt(config.minSpeedPxS, config.maxSpeedPxS);
+    const duration = Math.max(120, (amount / speedPxPerSec) * 1000);
     await smoothScrollBy(amount * direction, duration);
 
     if (!scrolling) break;

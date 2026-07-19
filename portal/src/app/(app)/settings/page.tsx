@@ -10,6 +10,8 @@ const DEFAULTS: Omit<UserSettings, "user_id" | "updated_at"> = {
   scroll_max_pause_ms: 5000,
   scroll_min_amount_px: 80,
   scroll_max_amount_px: 400,
+  scroll_min_speed_px_s: 200,
+  scroll_max_speed_px_s: 800,
 };
 
 export default function SettingsPage() {
@@ -47,6 +49,10 @@ export default function SettingsPage() {
           scroll_max_pause_ms: row.scroll_max_pause_ms,
           scroll_min_amount_px: row.scroll_min_amount_px,
           scroll_max_amount_px: row.scroll_max_amount_px,
+          scroll_min_speed_px_s:
+            row.scroll_min_speed_px_s ?? DEFAULTS.scroll_min_speed_px_s,
+          scroll_max_speed_px_s:
+            row.scroll_max_speed_px_s ?? DEFAULTS.scroll_max_speed_px_s,
         });
       } else {
         await supabase.from("user_settings").insert({ user_id: user.id });
@@ -67,6 +73,10 @@ export default function SettingsPage() {
     }
     if (settings.scroll_min_amount_px > settings.scroll_max_amount_px) {
       setError("Min scroll amount cannot exceed max.");
+      return;
+    }
+    if (settings.scroll_min_speed_px_s > settings.scroll_max_speed_px_s) {
+      setError("Min scroll speed cannot exceed max.");
       return;
     }
 
@@ -200,6 +210,50 @@ export default function SettingsPage() {
                 setSettings((s) => ({
                   ...s,
                   scroll_max_amount_px: Number(e.target.value),
+                }))
+              }
+              className="w-full rounded-lg border border-border bg-white px-3 py-2 outline-none ring-primary focus:ring-2"
+            />
+          </label>
+        </fieldset>
+
+        <fieldset
+          disabled={!settings.scroll_enabled}
+          className="grid grid-cols-2 gap-3 disabled:opacity-50"
+        >
+          <legend className="col-span-2 mb-1 text-sm font-medium">
+            Scroll speed (px/sec)
+          </legend>
+          <p className="col-span-2 -mt-1 mb-1 text-xs text-muted">
+            Each scroll burst picks a random speed in this range, so it
+            speeds up and slows down like a real person - never faster than
+            the max.
+          </p>
+          <label className="block space-y-1.5">
+            <span className="text-xs text-muted">Min</span>
+            <input
+              type="number"
+              min={1}
+              value={settings.scroll_min_speed_px_s}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  scroll_min_speed_px_s: Number(e.target.value),
+                }))
+              }
+              className="w-full rounded-lg border border-border bg-white px-3 py-2 outline-none ring-primary focus:ring-2"
+            />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-xs text-muted">Max (cap)</span>
+            <input
+              type="number"
+              min={1}
+              value={settings.scroll_max_speed_px_s}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  scroll_max_speed_px_s: Number(e.target.value),
                 }))
               }
               className="w-full rounded-lg border border-border bg-white px-3 py-2 outline-none ring-primary focus:ring-2"
