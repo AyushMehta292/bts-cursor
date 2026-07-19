@@ -1,4 +1,9 @@
-import { sendToTab, type ContentToBg, type PopupToBg } from "../lib/messages";
+import {
+  sendToTab,
+  type BgToContent,
+  type ContentToBg,
+  type PopupToBg,
+} from "../lib/messages";
 import { getSupabase } from "../lib/supabase";
 import type {
   Clip,
@@ -62,9 +67,32 @@ async function getActiveTabId(): Promise<number | null> {
   return tab.id;
 }
 
-async function pingTab(tabId: number): Promise<boolean> {
-  const result = await sendToTab<{ ok?: boolean }>(tabId, { type: "TYPING_STOP" });
-  return result?.ok === true || result !== undefined;
+// Manifest-declared content scripts only get injected into tabs that
+// load/reload *after* the extension itself was loaded/reloaded - a tab
+// that was already open won't have them. This reads the real (post-build)
+// file names from the runtime manifest and injects them on demand, so a
+// stale tab self-heals instead of silently doing nothing.
+async function ensureContentScriptInjected(tabId: number): Promise<boolean> {
+  try {
+    const manifest = chrome.runtime.getManifest();
+    const files = manifest.content_scripts?.[0]?.js;
+    if (!files || files.length === 0) return false;
+    await chrome.scripting.executeScript({ target: { tabId }, files });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function sendToTabRobust<T = unknown>(
+  tabId: number,
+  message: BgToContent,
+): Promise<T | undefined> {
+  const first = await sendToTab<T>(tabId, message);
+  if (first !== undefined) return first;
+  const injected = await ensureContentScriptInjected(tabId);
+  if (!injected) return undefined;
+  return sendToTab<T>(tabId, message);
 }
 
 async function stopScrolling() {
@@ -93,8 +121,7 @@ async function startScrollingIfNeeded() {
     await sendToTab(activeTabId, { type: "SCROLL_STOP" });
   }
 
-  activeTabId = tabId;
-  await sendToTab(tabId, {
+  const response = await sendToTabRobust<{ ok?: boolean }>(tabId, {
     type: "SCROLL_START",
     payload: {
       minPauseMs: scrollSettings.scroll_min_pause_ms,
@@ -105,7 +132,17 @@ async function startScrollingIfNeeded() {
       maxSpeedPxS: scrollSettings.scroll_max_speed_px_s,
     },
   });
+
+  if (!response?.ok) {
+    lastError =
+      "Could not start scrolling on this tab. Reload the tab (or switch to a normal http/https page) and try again.";
+    await publishStatus();
+    return;
+  }
+
+  activeTabId = tabId;
   mode = "scrolling";
+  lastError = null;
   await publishStatus();
 }
 
@@ -195,8 +232,7 @@ async function claimAndStartRun(run: RunRequest) {
   await publishStatus();
 
   const typedClip = clip as Clip;
-  const reachable = await pingTab(tabId);
-  const response = await sendToTab<{ ok?: boolean }>(tabId, {
+  const response = await sendToTabRobust<{ ok?: boolean }>(tabId, {
     type: "TYPING_START",
     payload: {
       runId: run.id,
@@ -208,11 +244,7 @@ async function claimAndStartRun(run: RunRequest) {
     },
   });
 
-  if (startPaused) {
-    await sendToTab(tabId, { type: "TYPING_PAUSE" });
-  }
-
-  if (!reachable && !response?.ok) {
+  if (!response?.ok) {
     await markRun(run.id, {
       status: "failed",
       completed_at: new Date().toISOString(),
@@ -222,6 +254,11 @@ async function claimAndStartRun(run: RunRequest) {
     mode = "idle";
     activeRunId = null;
     await publishStatus();
+    return;
+  }
+
+  if (startPaused) {
+    await sendToTab(tabId, { type: "TYPING_PAUSE" });
   }
 
   startActivePolling();
@@ -349,7 +386,7 @@ async function pollIdle() {
           .single();
         if (clip) {
           const typedClip = clip as Clip;
-          await sendToTab(tabId, {
+          await sendToTabRobust(tabId, {
             type: "TYPING_START",
             payload: {
               runId: run.id,
